@@ -1,5 +1,5 @@
 /*
- * PrayerTimes Library v2.0
+ * PrayerTimes Library v2.1
  * 
  * Original Author: Adnan Saab (https://github.com/a-saab)
  * Created: February 2025
@@ -13,6 +13,19 @@
  * - Extensible calculation method system
  * - High-latitude handling
  * - Defensive math for embedded systems
+ * 
+ * v2.1 Additions:
+ * - Imsak time (with configurable Temkin/precautionary buffer)
+ * - Duha/Ishraq time (angle-based astronomical calculation)
+ * 
+ * Calculation References:
+ * - Fajr/Isha: Based on sun depression angles from major Islamic authorities
+ *   (MWL: -18°, ISNA: -15°, Egypt: -19.5°, Umm al-Qura: interval-based, etc.)
+ * - Imsak: Fajr time minus precautionary buffer (default 10 min, "Temkin")
+ *   Used by Turkish Religious Affairs, Egyptian General Authority
+ * - Duha: Sun elevation angle above horizon (default 4.5°, range 4°-6°)
+ *   Based on Malaysian JAKIM (4.7°), Indonesian (3.5°), and general astronomy
+ *   "Spear's height" ~4°15' corresponds to ~16-20 minutes after sunrise
  */
 
 #ifndef PRAYERTIMES_H
@@ -80,10 +93,13 @@ struct PrayerTimesResult {
     float asr;
     float maghrib;
     float isha;
-    bool valid;  // False if calculation failed (e.g., extreme latitude, invalid input)
+    float imsak;  // Time to start fasting (before Fajr)
+    float duha;   // Forenoon prayer time (after sunrise)
+    bool valid;   // False if calculation failed (e.g., extreme latitude, invalid input)
     const char* errorMessage;  // Diagnostic message if valid=false
     
     PrayerTimesResult() : fajr(0), sunrise(0), dhuhr(0), asr(0), maghrib(0), isha(0), 
+                          imsak(0), duha(0),
                           valid(false), errorMessage(nullptr) {}
 };
 
@@ -123,6 +139,16 @@ public:
     // Set manual adjustments (in minutes) for fine-tuning
     void setAdjustments(int adjFajr, int adjSunrise, int adjDhuhr, int adjAsr, int adjMaghrib, int adjIsha);
     
+    // Set Imsak offset (minutes before Fajr, default: 10)
+    // This represents the precautionary buffer (Temkin) used by many authorities
+    // to ensure fasting begins before Fajr al-Sadiq (true dawn)
+    void setImsakOffset(int minutesBeforeFajr);
+    
+    // Set Duha calculation using solar altitude angle (degrees above horizon, default: 4.5°)
+    // Based on research: Malaysia uses 4°42', Indonesia uses 3°30', general range is 4°-6°
+    // Default 4.5° represents the "spear's height" (~16-20 minutes after sunrise)
+    void setDuhaAngle(float degreesAboveHorizon);
+    
     // Calculate prayer times for a given date
     // Returns a structure with all times in minutes since midnight
     PrayerTimesResult calculate(int day, int month, int year);
@@ -132,13 +158,16 @@ public:
     PrayerTimesResult calculateWithOffset(int day, int month, int year, int dstMinutes);
     
     // Legacy API compatibility (v1.x interface)
+    // New: Optional imsak and duha parameters added at the end for backward compatibility
     void calculate(int day, int month, int year,
                    int &fajrHour, int &fajrMinute,
                    int &sunriseHour, int &sunriseMinute,
                    int &dhuhrHour, int &dhuhrMinute,
                    int &asrHour, int &asrMinute,
                    int &maghribHour, int &maghribMinute,
-                   int &ishaHour, int &ishaMinute);
+                   int &ishaHour, int &ishaMinute,
+                   int *imsakHour = nullptr, int *imsakMinute = nullptr,
+                   int *duhaHour = nullptr, int *duhaMinute = nullptr);
     
     // Utility functions for time formatting
     static String formatTime12(int hour, int minute);
@@ -162,6 +191,10 @@ private:
     
     // Manual adjustments
     int _adjFajr, _adjSunrise, _adjDhuhr, _adjAsr, _adjMaghrib, _adjIsha;
+    
+    // Imsak and Duha calculation parameters
+    int _imsakOffsetMinutes;   // Minutes before Fajr (default: 10)
+    float _duhaAngle;          // Solar altitude for Duha (default: 4.5° above horizon)
     
     // Core astronomical calculations
     float deg2rad(float degrees);

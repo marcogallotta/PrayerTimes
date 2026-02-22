@@ -2,6 +2,8 @@
 
 A lightweight Arduino library for calculating Islamic prayer times based on multiple calculation methods. Supports various regions and methods such as MWL, ISNA, Umm al-Qura, Egyptian, Karachi, Tehran, and Jafari.
 
+**v2.1.0 Highlights:** Added Imsak (fasting start) and Duha (forenoon prayer) times with configurable offsets and angles.
+
 **v2.0 Highlights:** Input validation, error handling, high-latitude polar region support, and automatic smart defaults.
 
 ## Quick Start
@@ -48,8 +50,10 @@ if (result.valid) {
   - **Institute of Geophysics, University of Tehran**
   - **Jafari (Shia Ithna Ashari)**
   - Plus 15+ additional methods for worldwide coverage
-- Computes all **five daily prayer times** + **sunrise**:
+- Computes all **five daily prayer times** + **sunrise**, **Imsak**, and **Duha**:
   - **Fajr**, **Sunrise**, **Dhuhr**, **Asr**, **Maghrib**, **Isha**
+  - **Imsak** - Time to begin fasting (configurable buffer before Fajr)
+  - **Duha** - Forenoon prayer time (sun elevation angle based)
 - **Input validation** for coordinates (±90° latitude, ±180° longitude) and dates
 - **Error handling** with diagnostic messages for invalid inputs
 - **High-latitude support** (Arctic/Antarctic regions >66.5°) with four adjustment methods:
@@ -70,6 +74,60 @@ if (result.valid) {
    - macOS: `~/Documents/Arduino/libraries`
    - Linux: `~/Arduino/libraries`
 3. Restart the Arduino IDE.
+
+## v2.1 Features (New)
+
+### Imsak Time (Fasting Start)
+Calculate the time to begin fasting with a configurable precautionary buffer (Temkin) before Fajr:
+
+```cpp
+PrayerTimes pt(3.1390, 101.6869, 480);  // Kuala Lumpur
+pt.setCalculationMethod(CalculationMethods::JAKIM);
+
+// Set Imsak offset (minutes before Fajr)
+// Default is 10 min. Malaysian calendars typically use 18-20 min.
+pt.setImsakOffset(18);
+
+PrayerTimesResult result = pt.calculate(1, 3, 2026);
+if (result.valid) {
+    Serial.print("Imsak: ");
+    Serial.println(pt.formatTime12(result.imsak));  // Start fasting
+    Serial.print("Fajr:  ");
+    Serial.println(pt.formatTime12(result.fajr));   // True dawn
+}
+```
+
+### Duha Time (Forenoon Prayer)
+Calculate the forenoon prayer time based on sun elevation angle:
+
+```cpp
+// Set Duha angle (degrees above horizon)
+// Default is 4.5°. JAKIM uses 4°42' (~4.7°), Indonesia uses 3.5°
+pt.setDuhaAngle(4.7);
+
+PrayerTimesResult result = pt.calculate(1, 3, 2026);
+if (result.valid) {
+    Serial.print("Duha: ");
+    Serial.println(pt.formatTime12(result.duha));  // Forenoon prayer
+}
+```
+
+### Legacy API Support
+The legacy API now supports optional Imsak and Duha parameters:
+
+```cpp
+int fajrH, fajrM, imsakH, imsakM, duhaH, duhaM;
+
+pt.calculate(1, 3, 2026,
+             fajrH, fajrM,
+             sunriseH, sunriseM,
+             dhuhrH, dhuhrM,
+             asrH, asrM,
+             maghribH, maghribM,
+             ishaH, ishaM,
+             &imsakH, &imsakM,  // Optional: Imsak output
+             &duhaH, &duhaM);   // Optional: Duha output
+```
 
 ## v2.0 Features & Improvements
 
@@ -145,6 +203,7 @@ The library includes comprehensive examples:
 
 - **Multi-City_Test.ino** - Calculate prayer times for 5 cities worldwide (Montreal, Mumbai, Tokyo, Oslo, Tromsø)
 - **Advanced_Error_Handling.ino** - Demonstrates error handling, validation, and high-latitude adjustments with 7 test cases
+- **Imsak_Duha_Example.ino** - Multi-city test showing Imsak and Duha calculations with regional variations (Malaysia, Turkey, Indonesia, Saudi Arabia, Egypt)
 
 Run these examples to see the library in action and learn best practices.
 

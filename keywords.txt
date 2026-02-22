@@ -10,7 +10,7 @@ PrayerTimes	KEYWORD1
 PrayerTimesResult	KEYWORD1
 CalculationConfig	KEYWORD1
 AsrMethod	KEYWORD1
-HighLatitudeRule	KEYWORD1	PrayerTimes
+HighLatitudeRule	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -29,6 +29,8 @@ minutesToTime	KEYWORD2
 isInitialized	KEYWORD2
 isHighLatitude	KEYWORD2
 getLatitude	KEYWORD2
+setImsakOffset	KEYWORD2
+setDuhaAngle	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
@@ -36,8 +38,8 @@ getLatitude	KEYWORD2
 
 MWL	LITERAL1
 ISNA	LITERAL1
-UmmAlQura	LITERAL1
-Egyptian	LITERAL1
+MAKKAH	LITERAL1
+EGYPT	LITERAL1
 Karachi	LITERAL1
 Tehran	LITERAL1
 Jafari	LITERAL1
