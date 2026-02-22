@@ -1,8 +1,16 @@
 /*
- * PrayerTimes Library v2.0 - Implementation
+ * PrayerTimes Library v2.1 - Implementation
  * 
  * Original Author: Adnan Saab (https://github.com/a-saab)
  * Created: February 2025
+ * 
+ * Astronomical calculations based on:
+ * - NOAA solar calculation formulas
+ * - Islamic astronomy tradition (Ibn Yunus, Ottoman calculations)
+ * - Modern authoritative sources (PrayTimes.org, Moonsighting.com)
+ * 
+ * Imsak calculation: Fajr minus configurable buffer (Temkin tradition)
+ * Duha calculation: Sun altitude angle (default 4.5° above horizon)
  */
 
 #include "PrayerTimes.h"
@@ -22,6 +30,8 @@ PrayerTimes::PrayerTimes(float latitude, float longitude, int timezoneOffsetMinu
       _fajrAngle(18.0), _ishaAngle(17.0), 
       _asrMethod(SHAFII), _highLatRule(NONE),
       _ishaIsInterval(false), _ishaMinutes(0),
+      _imsakOffsetMinutes(10),  // Default: 10 minutes before Fajr
+      _duhaAngle(4.5),           // Default: 4.5° above horizon for Duha
       _initialized(false)
 {
     // Validate input coordinates
@@ -60,6 +70,14 @@ void PrayerTimes::setAdjustments(int adjFajr, int adjSunrise, int adjDhuhr,
     _adjAsr = adjAsr;
     _adjMaghrib = adjMaghrib;
     _adjIsha = adjIsha;
+}
+
+void PrayerTimes::setImsakOffset(int minutesBeforeFajr) {
+    _imsakOffsetMinutes = minutesBeforeFajr;
+}
+
+void PrayerTimes::setDuhaAngle(float degreesAboveHorizon) {
+    _duhaAngle = degreesAboveHorizon;
 }
 
 float PrayerTimes::deg2rad(float degrees) {
@@ -255,6 +273,11 @@ PrayerTimesResult PrayerTimes::calculateWithOffset(int day, int month, int year,
     // Apply high-latitude adjustments if needed
     applyHighLatitudeAdjustments(result, solarDec);
     
+    // Calculate Imsak (buffer before Fajr) and Duha (angle-based after sunrise)
+    result.imsak = normalizeTime(result.fajr - _imsakOffsetMinutes);
+    // Duha: when sun reaches specified altitude above horizon (astronomical calculation)
+    result.duha = calculateTimeForAngle(_duhaAngle, solarNoon, solarDec, true);
+    
     // Now apply ALL time offsets at once (manual adjustments + DST)
     result.fajr = normalizeTime(result.fajr + _adjFajr + dstMinutes);
     result.sunrise = normalizeTime(result.sunrise + _adjSunrise + dstMinutes);
@@ -262,6 +285,8 @@ PrayerTimesResult PrayerTimes::calculateWithOffset(int day, int month, int year,
     result.asr = normalizeTime(result.asr + _adjAsr + dstMinutes);
     result.maghrib = normalizeTime(result.maghrib + _adjMaghrib + dstMinutes);
     result.isha = normalizeTime(result.isha + _adjIsha + dstMinutes);
+    result.imsak = normalizeTime(result.imsak + _adjFajr + dstMinutes);  // Imsak follows Fajr adjustment
+    result.duha = normalizeTime(result.duha + _adjSunrise + dstMinutes); // Duha follows Sunrise adjustment
     
     result.valid = true;
     result.errorMessage = nullptr;
@@ -275,7 +300,9 @@ void PrayerTimes::calculate(int day, int month, int year,
                              int &dhuhrHour, int &dhuhrMinute,
                              int &asrHour, int &asrMinute,
                              int &maghribHour, int &maghribMinute,
-                             int &ishaHour, int &ishaMinute) {
+                             int &ishaHour, int &ishaMinute,
+                             int *imsakHour, int *imsakMinute,
+                             int *duhaHour, int *duhaMinute) {
     PrayerTimesResult result = calculate(day, month, year);
     
     minutesToTime(result.fajr, fajrHour, fajrMinute);
@@ -284,6 +311,14 @@ void PrayerTimes::calculate(int day, int month, int year,
     minutesToTime(result.asr, asrHour, asrMinute);
     minutesToTime(result.maghrib, maghribHour, maghribMinute);
     minutesToTime(result.isha, ishaHour, ishaMinute);
+    
+    // Optional new parameters - only set if pointers are provided
+    if (imsakHour != nullptr && imsakMinute != nullptr) {
+        minutesToTime(result.imsak, *imsakHour, *imsakMinute);
+    }
+    if (duhaHour != nullptr && duhaMinute != nullptr) {
+        minutesToTime(result.duha, *duhaHour, *duhaMinute);
+    }
 }
 
 void PrayerTimes::minutesToTime(float minutes, int &hour, int &minute) {
