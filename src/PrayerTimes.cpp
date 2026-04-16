@@ -29,7 +29,7 @@ PrayerTimes::PrayerTimes(float latitude, float longitude, int timezoneOffsetMinu
       _fajrAngle(18.0), _ishaAngle(17.0), 
       _ishaIsInterval(false), _ishaMinutes(0),
       _asrMethod(SHAFII), _highLatRule(NONE),
-      _adjFajr(0), _adjSunrise(0), _adjDhuhr(0),
+      _adjFajr(0), _adjSunrise(0), _adjDahwaEKubra(0), _adjDhuhr(0), 
       _adjAsr(0), _adjMaghrib(0), _adjIsha(0),
       _imsakOffsetMinutes(10),  // Default: 10 minutes before Fajr
       _duhaAngle(4.5)           // Default: 4.5° above horizon for Duha
@@ -63,9 +63,10 @@ void PrayerTimes::setHighLatitudeRule(HighLatitudeRule rule) {
 }
 
 void PrayerTimes::setAdjustments(int adjFajr, int adjSunrise, int adjDhuhr, 
-                                  int adjAsr, int adjMaghrib, int adjIsha) {
+                                 int adjAsr, int adjMaghrib, int adjIsha, int adjDahwaEKubra) {
     _adjFajr = adjFajr;
     _adjSunrise = adjSunrise;
+    _adjDahwaEKubra = adjDahwaEKubra;
     _adjDhuhr = adjDhuhr;
     _adjAsr = adjAsr;
     _adjMaghrib = adjMaghrib;
@@ -279,7 +280,9 @@ PrayerTimesResult PrayerTimes::calculateWithOffset(int day, int month, int year,
     result.imsak = normalizeTime(result.fajr - _imsakOffsetMinutes);
     // Duha: when sun reaches specified altitude above horizon (astronomical calculation)
     result.duha = calculateTimeForAngle(_duhaAngle, solarNoon, solarDec, true);
-    
+    // Dahwa e Kubra: Midpoint between Fajr and Maghrib
+    result.dahwaEKubra = result.fajr + (result.maghrib - result.fajr) / 2.0f;
+
     // Now apply ALL time offsets at once (manual adjustments + DST)
     result.fajr = normalizeTime(result.fajr + _adjFajr + dstMinutes);
     result.sunrise = normalizeTime(result.sunrise + _adjSunrise + dstMinutes);
@@ -289,7 +292,8 @@ PrayerTimesResult PrayerTimes::calculateWithOffset(int day, int month, int year,
     result.isha = normalizeTime(result.isha + _adjIsha + dstMinutes);
     result.imsak = normalizeTime(result.imsak + _adjFajr + dstMinutes);  // Imsak follows Fajr adjustment
     result.duha = normalizeTime(result.duha + _adjSunrise + dstMinutes); // Duha follows Sunrise adjustment
-    
+    result.dahwaEKubra = normalizeTime(result.dahwaEKubra + _adjDahwaEKubra + dstMinutes);
+
     result.valid = true;
     result.errorMessage = nullptr;
     return result;
@@ -304,7 +308,8 @@ void PrayerTimes::calculate(int day, int month, int year,
                              int &maghribHour, int &maghribMinute,
                              int &ishaHour, int &ishaMinute,
                              int *imsakHour, int *imsakMinute,
-                             int *duhaHour, int *duhaMinute) {
+                             int *duhaHour, int *duhaMinute,
+                             int *dahwaEKubraHour, int *dahwaEKubraMinute) {
     PrayerTimesResult result = calculate(day, month, year);
     
     minutesToTime(result.fajr, fajrHour, fajrMinute);
@@ -320,6 +325,9 @@ void PrayerTimes::calculate(int day, int month, int year,
     }
     if (duhaHour != nullptr && duhaMinute != nullptr) {
         minutesToTime(result.duha, *duhaHour, *duhaMinute);
+    }
+    if (dahwaEKubraHour != nullptr && dahwaEKubraMinute != nullptr) {
+        minutesToTime(result.dahwaEKubra, *dahwaEKubraHour, *dahwaEKubraMinute);
     }
 }
 
